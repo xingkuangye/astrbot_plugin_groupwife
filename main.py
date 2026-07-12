@@ -370,7 +370,7 @@ class MyPlugin(Star):
     # 处理群友老婆指令
     # @param event AstrMessageEvent 消息事件对象
     # @return MessageEventResult 抽取结果消息
-    @filter.command("wife", alias="群友老婆")
+    @filter.command("wife", alias={"群友老婆", "抽老婆", "老婆"})
     async def wife(self, event: AstrMessageEvent):
         """群友老婆指令：当天固定、双向一致，成员变更时仅重配落单。"""
         # 1) 仅支持群聊，私聊直接提示并返回。
