@@ -447,7 +447,8 @@ class MyPlugin(Star):
         if self.text:
             for t in self.text:
                 message += f"**{t}**\n"
-        message += f"""## 老婆来咯~
+        message += f"""<@{sender_id}>
+## 老婆来咯~
 ![img #60px #60px]({avatar_url})
 <@{wife_id}>
 是您今日的老婆哦！
