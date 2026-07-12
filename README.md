@@ -1,14 +1,56 @@
-# astrbot-plugin-helloworld
+# AstrBot 群友老婆插件
 
-AstrBot 插件模板 / A template plugin for AstrBot plugin feature
+一个适用于 AstrBot 的群聊娱乐插件，提供每日固定的群友老婆配对结果。
 
-> [!NOTE]
-> This repo is just a template of [AstrBot](https://github.com/AstrBotDevs/AstrBot) Plugin.
-> 
-> [AstrBot](https://github.com/AstrBotDevs/AstrBot) is an agentic assistant for both personal and group conversations. It can be deployed across dozens of mainstream instant messaging platforms, including QQ, Telegram, Feishu, DingTalk, Slack, LINE, Discord, Matrix, etc. In addition, it provides a reliable and extensible conversational AI infrastructure for individuals, developers, and teams. Whether you need a personal AI companion, an intelligent customer support agent, an automation assistant, or an enterprise knowledge base, AstrBot enables you to quickly build AI applications directly within your existing messaging workflows.
+## 功能简介
 
-# Supports
+- 支持指令：`/wife`
+- 支持别名：`群友老婆`
+- 仅在群聊生效，私聊会提示不支持
+- 同一天内结果固定
+- 配对结果双向一致（A 匹配 B，则 B 必匹配 A）
+- 当群成员发生增减时，保留已有有效配对，只对落单成员重新配对
 
-- [AstrBot Repo](https://github.com/AstrBotDevs/AstrBot)
-- [AstrBot Plugin Development Docs (Chinese)](https://docs.astrbot.app/dev/star/plugin-new.html)
-- [AstrBot Plugin Development Docs (English)](https://docs.astrbot.app/en/dev/star/plugin-new.html)
+## 配对规则
+
+1. 插件会记录群内发言成员作为候选池。
+2. 每天按日期生成当日配对，保证同一天内重复查询结果一致。
+3. 若群成员变化：
+	- 原有且仍有效的双方配对保持不变。
+	- 新增成员或失配成员进入落单池重新匹配。
+4. 若最终人数为奇数，会有 1 人落单（返回“今天没有匹配到群友老婆”）。
+
+## 使用说明
+
+在群聊中发送以下任意指令：
+
+- `/wife`
+- `群友老婆`
+
+插件会返回当日匹配结果，并 @ 对应成员。
+
+## 配置项
+
+可通过 `_conf_schema.json` 配置以下参数：
+
+- `beta_config`：是否启用测试版附加文案
+- `beta_feedback_template`：测试版反馈命令模板（支持 `{id}` 占位符）
+- `beta_report_template`：测试版举报命令模板（支持 `{id}` 占位符）
+- `inactive_days`：连续未发言超过多少天后踢出候选队列
+- `text`：结果顶部附加文案列表
+- `enable_keyboard`：是否启用消息按钮
+- `retry_button_label`：重试按钮文本
+- `retry_command`：重试按钮命令
+- `menu_button_label`：菜单按钮文本
+- `menu_command`：菜单按钮命令
+
+## 文件结构
+
+- `main.py`：插件主逻辑
+- `metadata.yaml`：插件元信息
+- `README.md`：插件说明文档
+
+## 注意事项
+
+- 本插件为娱乐用途，请理性使用。
+- 配对基于插件记录到的群成员集合；若某成员长期未发言，可能不会被纳入候选池。

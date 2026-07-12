@@ -1,0 +1,52 @@
+{
+  "text": {
+    "description": "要附加在群友老婆结果前的文本内容",
+    "type": "list",
+    "default": []
+  },
+  "beta_config": {
+    "description": "是否启用测试版附加文案",
+    "type": "bool",
+    "default": false
+  },
+  "beta_feedback_template": {
+    "description": "测试版反馈按钮命令模板，支持 {id} 占位符",
+    "type": "string",
+    "default": "/反馈 wife.{id} [在这里填写你想要反馈的内容]"
+  },
+  "beta_report_template": {
+    "description": "测试版举报按钮命令模板，支持 {id} 占位符",
+    "type": "string",
+    "default": "/举报 wife.{id} [在这里填写你想要举报的原因]"
+  },
+  "inactive_days": {
+    "description": "连续未发言超出该天数后踢出候选队列",
+    "type": "int",
+    "default": 3
+  },
+  "enable_keyboard": {
+    "description": "是否启用消息按钮",
+    "type": "bool",
+    "default": true
+  },
+  "retry_button_label": {
+    "description": "重试按钮文案",
+    "type": "string",
+    "default": "✨群友老婆"
+  },
+  "retry_command": {
+    "description": "重试按钮对应命令",
+    "type": "string",
+    "default": "/wife"
+  },
+  "menu_button_label": {
+    "description": "菜单按钮文案",
+    "type": "string",
+    "default": "📋菜单"
+  },
+  "menu_command": {
+    "description": "菜单按钮对应命令",
+    "type": "string",
+    "default": "/菜单"
+  }
+}
