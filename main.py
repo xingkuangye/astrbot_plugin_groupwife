@@ -132,6 +132,17 @@ class MyPlugin(Star):
                 buttons.insert(
                     0,
                     {
+                        "render_data": {"label": "✨今日运势", "style": 1},
+                        "action": {
+                            "type": 2,
+                            "permission": {"type": 2},
+                            "data": "/今日运势",
+                        },
+                    },
+                )
+                buttons.insert(
+                    0,
+                    {
                         "render_data": {"label": self.retry_button_label, "style": 1},
                         "action": {
                             "type": 2,
