@@ -67,17 +67,21 @@ class MyPlugin(Star):
 
         # 记录测试 ID，便于用户反馈或举报时回溯原始消息。
         
-        await self.put_kv_data(f"groupwife_{msg_id}_originmessage", message)
+        await self.put_kv_data(f"wife.{msg_id}originmessage", message)
 
         return message
 
     @filter.command("get_origin_message")
     async def get_origin_message(self, event: AstrMessageEvent, message_id: int):
-        """获取原始消息内容，供测试反馈使用。"""
+        """[测试]获取 wife 原始消息内容"""
         if not self.beta_config:
             return
 
-        message = await self.get_kv_data(f"groupwife_{message_id}_originmessage", None)
+        message_str = event.message_str
+        if not "wife" in message_str:
+            return
+
+        message = await self.get_kv_data(f"wife.{message_id}originmessage", None)
         if message is None:
             await self._send_markdown_message(event, f"未找到原始消息内容（ID: {message_id}）。")
             return
