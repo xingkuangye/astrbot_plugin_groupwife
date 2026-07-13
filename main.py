@@ -4,7 +4,7 @@ from astrbot.api.event import MessageChain
 from astrbot.api.message_components import Plain
 from astrbot.api import logger
 from botpy.http import Route
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 import hashlib
 import random
 
@@ -35,6 +35,11 @@ class MyPlugin(Star):
                 "/举报 wife.{id} [在这里填写你想要举报的原因]",
             )
         )
+
+    def _today_utc8(self) -> date:
+        """获取 UTC+8 时区下的当前日期。"""
+        tz = timezone(timedelta(hours=8))
+        return datetime.now(tz).date()
 
     def _normalize_group_members(self, raw_members) -> set:
         """将持久化成员结构转换为 set[str] 以便计算。"""
@@ -363,7 +368,8 @@ class MyPlugin(Star):
         # 获取消息上下文 -> member_id, group_id
         member_id = str(event.get_sender_id())
         group_id = str(event.get_group_id())
-        today_key = date.today().isoformat()
+        today = self._today_utc8()
+        today_key = today.isoformat()
 
         # 记录群成员集合 -> group_members
         group_members = await self._get_group_members(group_id)
@@ -400,7 +406,8 @@ class MyPlugin(Star):
         group_members.add(sender_id)
 
         # 4) 读取并更新最后发言记录 -> last_seen_map
-        date_key = date.today().isoformat()
+        today = self._today_utc8()
+        date_key = today.isoformat()
         last_seen_key = f"group_members_last_seen_{group_id}"
         last_seen_map = await self.get_kv_data(last_seen_key, {})
         if not isinstance(last_seen_map, dict):
@@ -411,7 +418,7 @@ class MyPlugin(Star):
         pruned_members, pruned_last_seen = self._prune_inactive_members(
             group_members,
             last_seen_map,
-            date.today(),
+            today,
             inactive_days=self.inactive_days,
         )
         group_members = pruned_members
