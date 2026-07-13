@@ -1,10 +1,7 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from astrbot.api.star import Context, Star, register
-from astrbot.api.event import MessageChain
-from astrbot.api.message_components import Plain
-from astrbot.api import logger
-from botpy.http import Route
 from datetime import date, datetime, timezone, timedelta
+from astrbot.api.event import filter, AstrMessageEvent
+from astrbot.api.star import Context, Star, register
+from botpy.http import Route
 import hashlib
 import random
 
@@ -17,24 +14,6 @@ class MyPlugin(Star):
         self.inactive_days = max(0, int(config.get("inactive_days", 3)))
 
         self.text = [str(t) for t in config.get("text", []) or []]
-        self.enable_keyboard = bool(config.get("enable_keyboard", True))
-        self.retry_button_label = str(config.get("retry_button_label", "✨群友老婆"))
-        self.retry_command = str(config.get("retry_command", "/wife"))
-        self.menu_button_label = str(config.get("menu_button_label", "📋菜单"))
-        self.menu_command = str(config.get("menu_command", "/菜单"))
-
-        self.beta_feedback_template = str(
-            config.get(
-                "beta_feedback_template",
-                "/反馈 wife.{id} [在这里填写你想要反馈的内容]",
-            )
-        )
-        self.beta_report_template = str(
-            config.get(
-                "beta_report_template",
-                "/举报 wife.{id} [在这里填写你想要举报的原因]",
-            )
-        )
 
     def _today_utc8(self) -> date:
         """获取 UTC+8 时区下的当前日期。"""
@@ -73,9 +52,6 @@ class MyPlugin(Star):
         msg_id = await self.get_kv_data("groupwife_now_msg_id", 0) + 1
         await self.put_kv_data("groupwife_now_msg_id", msg_id)
 
-        feedback_cmd = self.beta_feedback_template.replace("{id}", str(msg_id))
-        report_cmd = self.beta_report_template.replace("{id}", str(msg_id))
-
         try:
             openid = event.message_obj.raw_message.group_openid
         except AttributeError:
@@ -84,8 +60,8 @@ class MyPlugin(Star):
         message += f"""
 ***
 > 您当前正在使用测试版本的AL_1S机器人
-> 如果您遇到了问题，请点击<qqbot-cmd-input text=\"{feedback_cmd}\" show=\"反馈\" reference=\"true\" />
-> 如果您看到了不良信息，请点击<qqbot-cmd-input text=\"{report_cmd}\" show=\"举报\" reference=\"true\" />
+> 如果您遇到了问题，请点击<qqbot-cmd-input text="/反馈 wife.{msg_id} [在这里填写你想要反馈的内容]" show="反馈" reference="true" />
+> 如果您看到了不良信息，请点击<qqbot-cmd-input text="/举报 wife.{msg_id} [在这里填写你想要举报的原因]" show="举报" reference="true" />
 > 感谢您的支持~
 > _测试ID：{openid}_"""
 
@@ -113,7 +89,6 @@ class MyPlugin(Star):
 
     async def _send_markdown_message(self, event: AstrMessageEvent, message: str):
         """使用与 yunshi 一致的官方 API 发送 Markdown 消息。"""
-        is_private = event.is_private_chat()
         payload = {
             "msg_type": 2,
             "msg_id": event.message_obj.message_id,
@@ -122,40 +97,39 @@ class MyPlugin(Star):
             },
         }
 
-        if self.enable_keyboard:
-            buttons = [
+        buttons = [
+            {
+                "render_data": {"label": "📋菜单", "style": 1},
+                "action": {
+                    "type": 2,
+                    "permission": {"type": 2},
+                    "data": "/菜单",
+                },
+            }
+        ]
+        if not event.is_private_chat():
+            buttons.insert(
+                0,
                 {
-                    "render_data": {"label": self.menu_button_label, "style": 1},
+                    "render_data": {"label": "✨今日运势", "style": 1},
                     "action": {
                         "type": 2,
                         "permission": {"type": 2},
-                        "data": self.menu_command,
+                        "data": "/今日运势",
                     },
-                }
-            ]
-            if not is_private:
-                buttons.insert(
-                    0,
-                    {
-                        "render_data": {"label": "✨今日运势", "style": 1},
-                        "action": {
-                            "type": 2,
-                            "permission": {"type": 2},
-                            "data": "/今日运势",
-                        },
+                },
+            )
+            buttons.insert(
+                0,
+                {
+                    "render_data": {"label": "🎲群友老婆", "style": 1},
+                    "action": {
+                       "type": 2,
+                        "permission": {"type": 2},
+                        "data": "/群友老婆",
                     },
-                )
-                buttons.insert(
-                    0,
-                    {
-                        "render_data": {"label": self.retry_button_label, "style": 1},
-                        "action": {
-                            "type": 2,
-                            "permission": {"type": 2},
-                            "data": self.retry_command,
-                        },
-                    },
-                )
+                },
+            )
 
             payload["keyboard"] = {
                 "content": {
@@ -167,7 +141,7 @@ class MyPlugin(Star):
                 }
             }
 
-        if is_private:
+        if event.is_private_chat():
             user_openid = event.message_obj.raw_message.author.user_openid
             route = Route("POST", f"/v2/users/{user_openid}/messages")
             await event.bot.api._http.request(route, json={**payload})
