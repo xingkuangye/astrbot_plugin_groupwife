@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone, timedelta
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from botpy.http import Route
+from astrbot.utils.logger import logger
 import hashlib
 import random
 
@@ -368,89 +369,94 @@ class MyPlugin(Star):
     @filter.command("wife", alias={"群友老婆", "抽老婆", "老婆"})
     async def wife(self, event: AstrMessageEvent):
         """群友老婆指令：当天固定、双向一致，成员变更时仅重配落单。"""
-        # 1) 仅支持群聊，私聊直接提示并返回。
-        if event.is_private_chat():
-            message = "该指令仅支持群聊使用。"
-            message = await self._append_beta_notice(event, message)
-            await self._send_markdown_message(event, message)
-            return
-        
-        # 2) 获取上下文信息 -> group_id, sender_id
-        group_id = str(event.get_group_id())
-        sender_id = str(event.get_sender_id())
-
-        # 3) 读取并更新群成员集合 -> group_members
-        group_members = await self._get_group_members(group_id)
-        group_members.add(sender_id)
-
-        # 4) 读取并更新最后发言记录 -> last_seen_map
-        today = self._today_utc8()
-        date_key = today.isoformat()
-        last_seen_key = f"group_members_last_seen_{group_id}"
-        last_seen_map = await self.get_kv_data(last_seen_key, {})
-        if not isinstance(last_seen_map, dict):
-            last_seen_map = {}
-        last_seen_map[sender_id] = date_key
-
-        # 5) 清理超过 3 天未发言成员，只保留活跃候选。
-        pruned_members, pruned_last_seen = self._prune_inactive_members(
-            group_members,
-            last_seen_map,
-            today,
-            inactive_days=self.inactive_days,
-        )
-        group_members = pruned_members
-        await self._save_group_members(group_id, group_members)
-        await self.put_kv_data(last_seen_key, pruned_last_seen)
-
-        # 6) 兜底：如果成员为空则无法抽取。
-        if not group_members:
-            message = f"""## 抽取失败
-此错误只应在调试环境下出现
-如果您在正式环境中遇到此错误，请点击下方反馈按钮进行反馈"""
-            message = await self._append_beta_notice(event, message)
-            await self._send_markdown_message(event, message)
-            return
-
-        # 7) 读取或构建当天配对 -> daily_pairs
-        #    - 成员未变化 -> 直接复用当天缓存
-        #    - 成员变化   -> 保留旧配对，仅重配落单
-        daily_pairs = await self._get_or_build_daily_pairs(str(group_id), group_members, date_key)
-
-        # 8) 读取当前用户的匹配结果 -> wife_id
-        wife_id = daily_pairs.get(sender_id, sender_id)
-
-        # 9) 自己匹配自己代表今日落单（通常因为人数为奇数）。
-        if wife_id == sender_id:
-            message = f"""## 抽取失败
-爱丽丝找不到更多的老师啦
-要多多与爱丽丝互动哦~"""
-            message = await self._append_beta_notice(event, message)
-            await self._send_markdown_message(event, message)
-            return
-
-        platform = self.context.get_platform_inst(event.get_platform_id())
-        if hasattr(platform, 'appid'):
-            appid = platform.appid
-        else:
-            # 或者从配置里拿
-            appid = platform.config.get("appid", "")
-
-        avatar_url = f"https://q.qlogo.cn/qqapp/{appid}/{wife_id}/640"
+        try:
+            # 1) 仅支持群聊，私聊直接提示并返回。
+            if event.is_private_chat():
+                message = "该指令仅支持群聊使用。"
+                message = await self._append_beta_notice(event, message)
+                await self._send_markdown_message(event, message)
+                return
             
-        # 10) 输出抽取结果。
-        message = ""
-        if self.text:
-            for t in self.text:
-                message += f"**{t}**\n"
-        message += f"""<@{sender_id}>
-## 老婆来咯~
-![img #60px #60px]({avatar_url})
-<@{wife_id}>
-是您今日的老婆哦！
-```说明
-<内容仅供娱乐|请勿当真>
-```
-"""
-        message = await self._append_beta_notice(event, message)
-        await self._send_markdown_message(event, message)
+            # 2) 获取上下文信息 -> group_id, sender_id
+            group_id = str(event.get_group_id())
+            sender_id = str(event.get_sender_id())
+
+            # 3) 读取并更新群成员集合 -> group_members
+            group_members = await self._get_group_members(group_id)
+            group_members.add(sender_id)
+
+            # 4) 读取并更新最后发言记录 -> last_seen_map
+            today = self._today_utc8()
+            date_key = today.isoformat()
+            last_seen_key = f"group_members_last_seen_{group_id}"
+            last_seen_map = await self.get_kv_data(last_seen_key, {})
+            if not isinstance(last_seen_map, dict):
+                last_seen_map = {}
+            last_seen_map[sender_id] = date_key
+
+            # 5) 清理超过 3 天未发言成员，只保留活跃候选。
+            pruned_members, pruned_last_seen = self._prune_inactive_members(
+                group_members,
+                last_seen_map,
+                today,
+                inactive_days=self.inactive_days,
+            )
+            group_members = pruned_members
+            await self._save_group_members(group_id, group_members)
+            await self.put_kv_data(last_seen_key, pruned_last_seen)
+
+            # 6) 兜底：如果成员为空则无法抽取。
+            if not group_members:
+                message = f"""## 抽取失败
+    此错误只应在调试环境下出现
+    如果您在正式环境中遇到此错误，请点击下方反馈按钮进行反馈"""
+                message = await self._append_beta_notice(event, message)
+                await self._send_markdown_message(event, message)
+                return
+
+            # 7) 读取或构建当天配对 -> daily_pairs
+            #    - 成员未变化 -> 直接复用当天缓存
+            #    - 成员变化   -> 保留旧配对，仅重配落单
+            daily_pairs = await self._get_or_build_daily_pairs(str(group_id), group_members, date_key)
+
+            # 8) 读取当前用户的匹配结果 -> wife_id
+            wife_id = daily_pairs.get(sender_id, sender_id)
+
+            # 9) 自己匹配自己代表今日落单（通常因为人数为奇数）。
+            if wife_id == sender_id:
+                message = f"""## 抽取失败
+    爱丽丝找不到更多的老师啦
+    要多多与爱丽丝互动哦~"""
+                message = await self._append_beta_notice(event, message)
+                await self._send_markdown_message(event, message)
+                return
+
+            platform = self.context.get_platform_inst(event.get_platform_id())
+            if hasattr(platform, 'appid'):
+                appid = platform.appid
+            else:
+                # 或者从配置里拿
+                appid = platform.config.get("appid", "")
+
+            avatar_url = f"https://q.qlogo.cn/qqapp/{appid}/{wife_id}/640"
+                
+            # 10) 输出抽取结果。
+            message = ""
+            if self.text:
+                for t in self.text:
+                    message += f"**{t}**\n"
+            message += f"""<@{sender_id}>
+    ## 老婆来咯~
+    ![img #60px #60px]({avatar_url})
+    <@{wife_id}>
+    是您今日的老婆哦！
+    ```说明
+    <内容仅供娱乐|请勿当真>
+    ```
+    """
+            message = await self._append_beta_notice(event, message)
+            await self._send_markdown_message(event, message)
+        except Exception as e:
+            # 捕获异常并输出错误信息，避免插件崩溃。
+            logger.error(f"处理群老婆指令时出错: {e}")
+            yield event.plain_result(f"爱丽丝出现了错误，请稍后再试。\n> 错误已自动反馈！")
